@@ -6,6 +6,7 @@ Created on Wed Feb  9 20:35:16 2022
 """
 
 import random
+import copy
 
 turn = 1
 playableCard = 0
@@ -35,37 +36,38 @@ class Wonder:
 
         
 class Card:
-    def __init__(self, cost, produce, chain, effect, age):
+    def __init__(self, cost, produce, chain, effect, goldCost):
         self.cost = cost
         self.produce = produce
         self.chain = chain
         self.effect = effect
-        self.age = age
+        self.goldCost = goldCost
 
     
 #Age 1 Cards
-clayPool = Card(0, "clay", 0, 0, 1)
-lumberYard = Card(0, "wood", 0, 0, 1)
-altar = Card(0, "2vp", "temple", 0, 1)
-clayPitt = Card("1g", "clay or ore", 0, 0, 1)
-timberYard = Card("1g", "stone or wood", 0, 0, 1)
-westTradingPost = Card(0, 0, "forum", "1 less g raw res left", 1)
-loom = Card(0, "loom", 0, 0, 1)
-glassworks = Card(0, "glass", 0, 0, 1)
-press = Card(0, "papyrus", 0, 0, 1)
-workshop = Card("glass", "cog", "laboratory", 0, 1)
-barracks = Card("ore", "1mp", 0, 0, 1)
-stockade = Card("wood", "1mp", 0, 0, 1)
-guardTower = Card("clay", "1mp", 0, 0, 1)
-apothecary = Card("loom", "compass", "stables or dispensary", 0, 1)
-scriptorium = Card("papyrus", "tablet", "courthouse or library", 0, 1)
-eastTradingPost = Card(0, 0, "forum", "1 less g raw res right", 0, 1)
-marketplace = Card(0, 0, "caravansery", "1 less g man res both", 1)
-baths = Card("stone", "3vp", "aqueduct", 0, 1)
-theater = Card(0, "2vp", "statue", 0, 1)
-stonePit = Card(0, "stone", 0, 0, 1)
+clayPool = Card(0, "clay", 0, 0, 0)
+lumberYard = Card(0, "wood", 0, 0, 0)
+altar = Card(0, "2vp", "temple", 0, 0)
+clayPit = Card("gold", "clay or ore", 0, 0, 1)
+timberYard = Card("gold", "stone or wood", 0, 0, 1)
+westTradingPost = Card(0, 0, "forum", "1 less g raw res left", 0)
+loom = Card(0, "loom", 0, 0, 0)
+glassworks = Card(0, "glass", 0, 0, 0)
+press = Card(0, "papyrus", 0, 0, 0)
+workshop = Card("glass", "cog", "laboratory", 0, 0)
+barracks = Card("ore", "1mp", 0, 0, 0)
+stockade = Card("wood", "1mp", 0, 0, 0)
+guardTower = Card("clay", "1mp", 0, 0, 0)
+apothecary = Card("loom", "compass", "stables or dispensary", 0, 0)
+scriptorium = Card("papyrus", "tablet", "courthouse or library", 0, 0)
+eastTradingPost = Card(0, 0, "forum", "1 less g raw res right", 0)
+marketplace = Card(0, 0, "caravansery", "1 less g man res both", 0)
+baths = Card("stone", "3vp", "aqueduct", 0, 0)
+theater = Card(0, "2vp", "statue", 0, 0)
+stonePit = Card(0, "stone", 0, 0, 0)
+oreVein = Card(0, "ore", 0, 0, 0)
 
-cards1 = [clayPool, lumberYard, altar, clayPitt, timberYard, westTradingPost, loom, glassworks, barracks, stockade, guardTower, apothecary, scriptorium, eastTradingPost, marketplace, baths, theater, stonePit]
+cards1 = [oreVein, clayPool, lumberYard, altar, clayPit, timberYard, westTradingPost, loom, glassworks, press, workshop, barracks, stockade, guardTower, apothecary, scriptorium, eastTradingPost, marketplace, baths, theater, stonePit]
 
 #wonders
 alexandriaA = Wonder("glass", ["stone", "stone"], "3vp", 0, ["ore", "ore"], "raw", 0, ["glass", "glass"], "7vp", 0)
@@ -93,23 +95,127 @@ def playGame():
         player3 = Player(wonders[2], 3, [], [], 0, 0, [])
         players = [player1, player2, player3]
         
-        for i in players:
+        for i in range(3):
             players[i].resources.append(players[i].wonder.resource) #give player their wonders starting resource
             
-        for i in players:
+        for i in range(3):
             for j in range(7):
                 players[i].hand.append(cards1[i*7 + j]) #give players thier starting hands
+        
+    while turn < 7:
+        if turn != 1:
+            handCopy = copy(players[0].hand)
+            players[0].hand = players[1].hand
+            players[1].hand = players[2].hand
+            players[2].hand = handCopy
+        for i in range(3):
+            playableCards = []
+            for j in range(len(players[i].hand)):
+                if players[i].hand[j].cost == 0: #If card is free
+                    playableCards.append(players[i].hand[j])
+                elif players[i].hand[j].cost == "gold" and players[i].gold >= players[i].hand[j].goldCost: #If card costs gold and player can afford
+                    playableCards.append(players[i].hand[j])
+                else: #Goes to check needs and baskets
+                    needs = players[i].hand[j].cost
+                    resources = players[i].resources
+                    resolvedNeeds = resolveNeeds(needs, resources)
+                    
+                    if resolvedNeeds == []:
+                        playableCards.append(players[i].hand[j])
+                    else:
+                        resolvedNeedsNum = len(resolvedNeeds[0])
+                        for k in range(3):
+                            if k == i:
+                                continue
+                            else:
+                                neighbourResolvedNeeds = resolveNeeds(resolvedNeeds, players[k].resources)
+                                if neighbourResolvedNeeds == []:
+                                    playableCards.append(players[i].hand[j])
+                                else:
+                                    for l in range(3):
+                                        if l == k or l == i:
+                                            continue
+                                        else:
+                                            neighbour2ResolvedNeeds = resolveNeeds(neighbourResolvedNeeds, players[l].resources)
+                                    if neighbour2ResolvedNeeds == []:
+                                        playableCards.append(players[i].hand[j])
+    print(playableCards)
+                                
+        
+#Given a list of needs and a list of resource "baskets" this function returns
+#the minimal list of resources that cannot be satisfied.
     
-    while turn <= 7:
-        for i in players:
-            for j in players[i].hand:
-                if players[i].hand[j].cost == 0:
-                    playableCard.append(j)
-                elif players[i].hand[j].cost in players[i].resources:
-                    playableCard.append(j)
-                elif players[i].hand[j].cost in players[]
-                    
-                    
+def resolveNeeds(needs, resources):
+    finalStates = []
+    needsStates = [(needs, resources)]
+    
+    while needsStates != []:
+        firstState = needsStates.pop(0)
+        if firstState in finalStates:
+            continue
+        resolutions = resolveNeed(*firstState)
+        if resolutions == []:
+            finalStates = updateFinalStates(firstState, finalStates)
+        else:
+            needsStates = needsStates + resolutions
+    if finalStates == []:
+        return []
+    else:
+        return [s[0] for s in finalStates]
+
+#Given list of need and list of resource baskets, returns each way ONE given need
+#is resolved by ONE given basket. Therefore returns a list of states with one less
+#need and one less basket.
+        
+def resolveNeed(needs, resources):
+    resolutions = []
+    
+    for need in needs:
+        for basket in resources:
+            if need in basket:
+                otherNeeds = copy(needs)
+                otherNeeds.remove(need)
+                otherResources = copy(resources)
+                otherResources.remove(basket)
+                resolutions.append((otherNeeds, otherResources))
+    return resolutions
+
+#Checks new final state against existing ones, if it has more un-met needs than an
+#existing one it will not be added. If an existing final state has more un-met needs
+#then it will be removed.
+
+def updateFinalStates(state, finalStates):
+    unbeatenFinalStates = []
+    
+    for fs in finalStates:
+        comp = compareBags(state[0], fs[0])
+        if comp == "superbag" or comp == "equal":
+            return finalStates
+        if comp != "subbag":
+            unbeatenFinalStates.append(fs)
+        unbeatenFinalStates.append(state)
+        return unbeatenFinalStates
+
+#Compares 2 bags.
+
+def compareBags(bag1, bag2):
+    cbag2 = copy(bag2)
+    only1 = []
+    
+    for item in bag1:
+        if item in cbag2:
+            cbag2.remove(item)
+        else:
+            only1.append(item)
+    if only1 == [] and cbag2 == []:
+        return "equal"
+    if only1 == []:
+        return "subbag"
+    if cbag2 == []:
+        return "superbag"
+    return "incomparable"
+
+playGame()
         
         
     
