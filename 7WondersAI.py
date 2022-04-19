@@ -45,8 +45,12 @@ class Card:
         self.neighbourPay = neighbourPay
     
 class ai:
-    def __init__(self, goldValue):
-        self.goldValue = goldValue
+    def __init__(self, goldValue1, goldValue2, goldValue3, scienceFocus, militaryFocus):
+        self.goldValue1 = goldValue1
+        self.goldValue2 = goldValue2
+        self.goldValue3 = goldValue3
+        self.scienceFocus = scienceFocus
+        self.militaryFocus = militaryFocus
 
 #Age 1 Cards
 clayPool = Card(0, [["clay"]], 0, 0, 0, "Clay Pool", "brown", [])
@@ -100,7 +104,7 @@ cards2 = [aqueduct, archeryRange, brickyard, caravansery, courthouse, dispensary
 
 #Age 3 Cards
 academy = Card(["stone", "stone", "stone", "glass"] , "compass", 0, 0, 0, "Academy", "green", [])
-arena = Card(["stone", "stone", "ore"] , 0, "coin and vp wonder stage", 0, 0, "Arena", "yellow", [])
+arena = Card(["stone", "stone", "ore"] , 0, "gold and vp per wonder stage", 0, 0, "Arena", "yellow", [])
 arsenal = Card(["wood", "wood", "ore", "loom"] , "3mp", 0, 0, 0, "Arsenal", "red", [])
 fortifications = Card(["ore", "ore", "ore", "stone"] , "3mp", 0, 0, 0, "Fortifications", "red", [])
 gardens = Card(["clay", "clay", "wood"] , 5, 0, 0, 0, "Gardens", "blue", [])
@@ -146,9 +150,13 @@ rhodosA = Wonder("Rhodos A", ["ore"], Card(["wood", "wood"], 3, 0, 0, 0, "Stage 
 wonders = [alexandriaA, halikarnassosA, gizahA, olympiaA, ephesosA, babylonA, rhodosA]
 
 #ai
-goldFourty = ai(0.4)
-goldThirtyThree = ai(0.3333)
-goldFifty = ai(0.5)
+#First three values correspond to gold piece value in ages 1,2,3 respectively
+#Fourth value is science focus three options 0=almost never takes science, 0.5 = normal science rules apply, 1=Always takes science if possible, not a scale only these values apply
+#Fifth value is military focus
+goldFourty = ai(0.4,0.4,0.4,0.5,1)
+goldThirtyThree = ai(0.3333,0.3333,0.3333,0.5,1)
+goldFifty = ai(0.5,0.5,0.5,0.5,1)
+goldVariable = ai(0.5,0.5,0.3,0.5,1)
 
 class GameState:
     def __init__(self):
@@ -173,9 +181,9 @@ def playGame():
     discardPile = []
     while age <= 3:
         if turn == 1 and age == 1:
-            player1 = Player(wonders[0], 3, [], [], 0, 0, [], [], "Gold worth 0.50 Player", [], [], goldFifty)
-            player2 = Player(wonders[1], 3, [], [], 0, 0, [], [], "Gold worth 0.40 Player", [], [], goldFourty)
-            player3 = Player(wonders[2], 3, [], [], 0, 0, [], [], "Gold worth 0.33 Player", [], [], goldThirtyThree)
+            player1 = Player(wonders[0], 3, [], [], 0, 0, [], [], "AI Player 1", [], [], goldFifty)
+            player2 = Player(wonders[1], 3, [], [], 0, 0, [], [], "Human Player 2", [], [], goldFifty)
+            player3 = Player(wonders[2], 3, [], [], 0, 0, [], [], "AI Player 3", [], [], goldFifty)
             players = [player1, player2, player3]
             
             for player in players:
@@ -268,7 +276,7 @@ def playGame():
             else:
                 for k in players[i].hand:
                     if k in playableCards and k.colour == "wonder" and k.neighbourPay == []:
-                        print(k.name + " of your wonder is playable for free or from own resources.")
+                        print(k.name + " of your wonder is playable from own resources.")
                     elif k in playableCards and k.colour == "wonder" and k.neighbourPay != []:
                         print(k.name + " of your wonder is playable from trade.")
                         neighbourPayDistribution = ""
@@ -338,7 +346,7 @@ def playGame():
         playerCounter = 0
         for x in buildingChoice:
             if x[0] == 1:
-                buildStructure(x[1], playerCounter, players)
+                buildStructure(x[1], playerCounter, players, buildingChoice)
             if x[0] == 2:
                 buildWonderStage(x[1], playerCounter, players, discardPile, x[2], age, buildingChoice)
             if x[0] == 3:
@@ -397,6 +405,7 @@ def playGame():
             turn = 1
             age += 1
             continue
+        #input()
         turn += 1
             
 #Given a list of needs and a list of resource "baskets" this function returns
@@ -581,8 +590,7 @@ def chooseAction(players, i):
             choice = input("Select your choice: ")
     return choice
 
-def buildStructure(chosenCard, i, players):
-    
+def buildStructure(chosenCard, i, players, buildingChoice):
     if len(chosenCard.neighbourPay) == 1:
         moneySpent = 0
         for j in range(3):
@@ -593,13 +601,26 @@ def buildStructure(chosenCard, i, players):
     elif len(chosenCard.neighbourPay) > 1:
         paymentChoice = -1
         moneySpent = 0
-        while paymentChoice < 0 and paymentChoice > len(chosenCard.neighbourPay):
-            paymentChoice = input("Pick payment option for card: ")
+        whoPay = []
+        while paymentChoice < 0 or paymentChoice > len(chosenCard.neighbourPay):
+            for j in chosenCard.neighbourPay:
+                paymentTotal = 0
+                for k in j:
+                    if k != []:
+                        paymentTotal += k
+                whoPay.append(paymentTotal)
+            if whoPay.count(min(whoPay)) == 1:
+                paymentChoice = whoPay.index(min(whoPay))
+            else:
+                while whoPay[paymentChoice] != min(whoPay) or paymentChoice == -1:
+                    paymentChoice = random.randint(0,len(chosenCard.neighbourPay)-1)
+        print(chosenCard.neighbourPay)
+        print(paymentChoice)
         for j in range(3):
             if type(chosenCard.neighbourPay[paymentChoice][j]) == int:
                 players[j].gold += chosenCard.neighbourPay[paymentChoice][j]
                 moneySpent += chosenCard.neighbourPay[paymentChoice][j]
-                players[i].gold -= moneySpent
+        players[i].gold -= moneySpent
         
     players[i].buildings.append(chosenCard)
     players[i].effects.append(chosenCard.colour)
@@ -626,16 +647,49 @@ def buildStructure(chosenCard, i, players):
         players[i].effects.append(chosenCard.effect)
     if chosenCard.effect == "gold per brown card":
         players[i].gold += players[i].effects.count("brown") + players[i-1].effects.count("brown") + players[i-2].effects.count("brown")
+        if i == 0:
+            if buildingChoice[1][1].colour == "brown":
+                players[i].gold += 1
+            if buildingChoice[2][1].colour == "brown":
+                players[i].gold += 1
+        if i== 1:
+            if buildingChoice[2][1].colour == "brown":
+                players[i].gold += 1
     elif chosenCard.effect == "gold and vp per brown card":
         players[i].gold += players[i].effects.count("brown")
+        if i == 0:
+            if buildingChoice[1][1].colour == "brown":
+                players[i].gold += 1
+            if buildingChoice[2][1].colour == "brown":
+                players[i].gold += 1
+        if i== 1:
+            if buildingChoice[2][1].colour == "brown":
+                players[i].gold += 1
     elif chosenCard.effect == "gold and vp per yellow card":
         players[i].gold += players[i].effects.count("yellow")
+        if i == 0:
+            if buildingChoice[1][1].colour == "yellow":
+                players[i].gold += 1
+            if buildingChoice[2][1].colour == "yellow":
+                players[i].gold += 1
+        if i== 1:
+            if buildingChoice[2][1].colour == "yellow":
+                players[i].gold += 1
+    elif chosenCard.effect == "gold and vp per wonder stage":
+        players[i].gold += 3 * players[i].effect.count("wonder")
+        if i == 0:
+            if buildingChoice[1][1].colour == "wonder":
+                players[i].gold += 3
+            if buildingChoice[2][1].colour == "wonder":
+                players[i].gold += 3
+        if i== 1:
+            if buildingChoice[2][1].colour == "wonder":
+                players[i].gold += 3
     
     if chosenCard in players[i].hand:
         players[i].hand.remove(chosenCard)
 
 def buildWonderStage(chosenCard, i, players, discardPile, discardChoice, age, buildingChoice):
-    print(chosenCard.name)
     if len(chosenCard.neighbourPay) == 1:
         moneySpent = 0
         for j in range(3):
@@ -646,13 +700,26 @@ def buildWonderStage(chosenCard, i, players, discardPile, discardChoice, age, bu
     elif len(chosenCard.neighbourPay) > 1:
         paymentChoice = -1
         moneySpent = 0
-        while paymentChoice < 0 and paymentChoice > len(chosenCard.neighbourPay):
-            paymentChoice = input("Pick payment option for card: ")
+        whoPay = []
+        while paymentChoice < 0 or paymentChoice > len(chosenCard.neighbourPay):
+            for j in chosenCard.neighbourPay:
+                paymentTotal = 0
+                for k in j:
+                    if k != []:
+                        paymentTotal += k
+                whoPay.append(paymentTotal)
+
+            if whoPay.count(min(whoPay)) == 1:
+                paymentChoice = whoPay.index(min(whoPay))
+            else:
+                while whoPay[paymentChoice] != min(whoPay) or paymentChoice == -1:
+                    paymentChoice = random.randint(0,len(chosenCard.neighbourPay)-1)
+                    
         for j in range(3):
             if type(chosenCard.neighbourPay[paymentChoice][j]) == int:
                 players[j].gold += chosenCard.neighbourPay[paymentChoice][j]
                 moneySpent += chosenCard.neighbourPay[paymentChoice][j]
-                players[i].gold -= moneySpent
+        players[i].gold -= moneySpent
     
     players[i].buildings.append(chosenCard)
     players[i].effects.append(chosenCard.colour)
@@ -671,7 +738,7 @@ def buildWonderStage(chosenCard, i, players, discardPile, discardChoice, age, bu
                 discardPick = input("Pick a discarded card to build: ")
                 discardPick = int(discardPick)
                 print(discardPick)
-            buildStructure(discardPile[discardPick], i, players)
+            buildStructure(discardPile[discardPick], i, players, buildingChoice)
         else:
             pickDiscardedHandCopy = players[i].hand
             players[i].hand = discardPile
@@ -737,6 +804,8 @@ def calculateVictoryPoints(players):
             vpCounter[i] += players[i].effects.count("brown")
         if lighthouse in players[i].buildings:
             vpCounter[i] += players[i].effects.count("yellow")
+        if arena in players[i].buildings:
+            vpCounter[i] += players[i].effects.count("wonder")
     return vpCounter
         
 def techVictoryPoints(cogs, tablets, compasses, wilds ):
@@ -840,7 +909,7 @@ def aiChooseAction(playList, players, i, playableCards, age, discardYes, buildin
     elif discardYes == 1:
         if discardChoice == 0:
             print("Built: " + players[i].hand[playList.index(max(playList))].name)
-            buildStructure(players[i].hand[playList.index(max(playList))], i, players)
+            buildStructure(players[i].hand[playList.index(max(playList))], i, players, buildingChoice)
         else:
             print("Discarded " + discardChoice.name)
             discardCard(discardChoice, discardPile, players, i)
@@ -848,34 +917,45 @@ def aiChooseAction(playList, players, i, playableCards, age, discardYes, buildin
 def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
     heuristicEval = []
     cardCost = 0
+    if type(players[i].ai) != str:
+        if age == 1:
+            goldValue = players[i].ai.goldValue1
+        if age == 2:
+            goldValue = players[i].ai.goldValue2
+        if age == 3:
+            goldValue = players[i].ai.goldValue3
+    else:
+        goldValue = 0.3333
     if players[i].ai == "random":
         heuristicEval = [random.randrange(1,100,1) for j in hand]
     else:
         for j in hand:
             cardCost = j.goldCost
             if j.neighbourPay != []:
-                if type(j.neighbourPay[0][0]) == int:
-                    cardCost += j.neighbourPay[0][0]
-                if type(j.neighbourPay[0][1]) == int:
-                    cardCost += j.neighbourPay[0][1]
-                if type(j.neighbourPay[0][2]) == int:
-                    cardCost += j.neighbourPay[0][2]
+                cardCostChoice = []
+                for k in j.neighbourPay:
+                    cardCostCounter = 0
+                    for l in k:
+                        if type(l) == int:
+                            cardCostCounter += l
+                    cardCostChoice.append(cardCostCounter)
+                cardCost += min(cardCostChoice)
             if j.colour == "blue":
-                heuristicEval.append(j.produce - (cardCost*players[i].ai.goldValue))
+                heuristicEval.append(j.produce - (cardCost*goldValue))
             
             elif j.colour == "red":
                 if players[i-1].mpower + age > players[i].mpower or players[i-2].mpower + age > players[i].mpower:
-                    heuristicEval.append(6 - (cardCost*players[i].ai.goldValue)) #FIX
+                    heuristicEval.append(6 - (cardCost*goldValue)) #FIX
                 elif players[i-1].mpower + age >= players[i].mpower or players[i-2].mpower + age >= players[i].mpower:
-                    heuristicEval.append(4 - (cardCost*players[i].ai.goldValue))
+                    heuristicEval.append(4 - (cardCost*goldValue))
                 else:
-                    heuristicEval.append(2 - (cardCost*players[i].ai.goldValue))
+                    heuristicEval.append((2 - (cardCost*goldValue))*players[i].ai.militaryFocus)
             
-            elif j.colour == "green":
+            elif j.colour == "green" and players[i].ai.scienceFocus == 0.5:
                 if players[i].science.count("cog") + players[i].science.count("compass") + players[i].science.count("tablet") == 0:
-                    heuristicEval.append(5 - (cardCost*players[i].ai.goldValue))
+                    heuristicEval.append(5 - (cardCost*goldValue))
                 elif age == 1:
-                    heuristicEval.append(3 - (cardCost*players[i].ai.goldValue))
+                    heuristicEval.append(3 - (cardCost*goldValue))
                 else:
                     if j.produce == "cog":
                         scienceDifference = techVictoryPoints(players[i].science.count("cog")+1, players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science")) - techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science"))
@@ -883,12 +963,19 @@ def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
                         scienceDifference = techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet")+1, players[i].science.count("compass"), players[i].effects.count("science")) - techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science"))
                     elif j.produce == "compass":
                         scienceDifference = techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass")+1, players[i].effects.count("science")) - techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science"))
-                    heuristicEval.append(scienceDifference - (cardCost*players[i].ai.goldValue))
+                    heuristicEval.append(scienceDifference - (cardCost*goldValue))
+            
+            elif j.colour == "green" and players[i].ai.scienceFocus == 0:
+                heuristicEval.append(2)
+            
+            elif j.colour == "green" and players[i].ai.scienceFocus == 1:
+                heuristicEval.append(100)
                     
             elif j.colour == "brown" or j.colour == "grey":
                 resourceBonus = 2
                 
                 if len(j.produce[0]) == 2:
+                    resourceBonus += 1
                     if [j.produce[0][0]] not in players[i-1].resources:
                         resourceBonus += 0.5
                     if [j.produce[0][1]] not in players[i-1].resources:
@@ -898,11 +985,15 @@ def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
                     if [j.produce[0][1]] not in players[i-2].resources:
                         resourceBonus += 0.5
                     if [j.produce[0][0]] not in players[i].resources:
-                        resourceBonus += 0.5
+                        resourceBonus += 1
                     else:
                         resourceBonus -= 0.5
-                    if [j.produce[0][1]] not in players[i].resources:
+                    if [j.produce[0][0]] in players[i].wonder.stage1.cost or [j.produce[0][0]] in players[i].wonder.stage2.cost or [j.produce[0][0]] in players[i].wonder.stage3.cost:
                         resourceBonus += 0.5
+                    if [j.produce[0][1]] in players[i].wonder.stage1.cost or [j.produce[0][1]] in players[i].wonder.stage2.cost or [j.produce[0][1]] in players[i].wonder.stage3.cost:
+                        resourceBonus += 0.5
+                    if [j.produce[0][1]] not in players[i].resources:
+                        resourceBonus += 1
                     else:
                         resourceBonus -= 0.5
                 elif len(j.produce) == 2:
@@ -914,6 +1005,8 @@ def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
                         resourceBonus += 1
                     else:
                         resourceBonus -= 0.5
+                    if [j.produce[0]] in players[i].wonder.stage1.cost or [j.produce[0]] in players[i].wonder.stage2.cost or [j.produce[0]] in players[i].wonder.stage3.cost:
+                        resourceBonus += 0.5
                 else:
                     if j.produce[0] not in players[i-1].resources:
                         resourceBonus += 0.5
@@ -923,22 +1016,24 @@ def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
                         resourceBonus += 1
                     else:
                         resourceBonus -= 1
+                    if [j.produce[0]] in players[i].wonder.stage1.cost or [j.produce[0]] in players[i].wonder.stage2.cost or [j.produce[0]] in players[i].wonder.stage3.cost:
+                        resourceBonus += 1
                 
-                heuristicEval.append(resourceBonus - (cardCost*players[i].ai.goldValue))
+                heuristicEval.append(resourceBonus - (cardCost*goldValue))
             
             elif j.colour == "yellow":
                 if j.name == "West Trading Post":
-                    goldBonus = 3*players[i].ai.goldValue
-                    goldBonus += 2*players[i].ai.goldValue * players[i-1].effects.count("brown")
+                    goldBonus = 3*goldValue
+                    goldBonus += 2*goldValue * players[i-1].effects.count("brown")
                     if players[i-1].wonder.resource == ["ore"] or players[i-1].wonder.resource == ["wood"] or players[i-1].wonder.resource == ["clay"] or players[i-1].wonder.resource == ["stone"]:
-                        goldBonus += 2*players[i].ai.goldValue
+                        goldBonus += 2*goldValue
                 elif j.name == "East Trading Post":
-                    goldBonus = 3*players[i].ai.goldValue
-                    goldBonus += 2*players[i].ai.goldValue * players[i-2].effects.count("brown")
-                    if players[i-2].wonder.resource == ["ore"] or players[i-1].wonder.resource == ["wood"] or players[i-1].wonder.resource == ["clay"] or players[i-1].wonder.resource == ["stone"]:
-                        goldBonus += 2*players[i].ai.goldValue
+                    goldBonus = 3*goldValue
+                    goldBonus += 2*goldValue * players[i-2].effects.count("brown")
+                    if players[i-2].wonder.resource == ["ore"] or players[i-2].wonder.resource == ["wood"] or players[i-2].wonder.resource == ["clay"] or players[i-2].wonder.resource == ["stone"]:
+                        goldBonus += 2*goldValue
                 elif j.name == "Tavern":
-                    goldBonus = 5*players[i].ai.goldValue
+                    goldBonus = 5*goldValue
                 elif j.name == "Forum":
                     goldBonus = 4
                     for x in players[i].buildings:
@@ -952,21 +1047,21 @@ def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
                         if x.colour == "brown":
                             goldBonus -= 1
                 elif j.name == "Marketplace":
-                    goldBonus = 3*players[i].ai.goldValue
-                    goldBonus += (2*players[i].ai.goldValue) * (players[i-1].effects.count("grey")+players[i-2].effects.count("grey"))
+                    goldBonus = 3*goldValue
+                    goldBonus += (2*goldValue) * (players[i-1].effects.count("grey")+players[i-2].effects.count("grey"))
                     if players[i-1].wonder.resource == ["loom"] or players[i-1].wonder.resource == ["glass"] or players[i-1].wonder.resource == ["papyrus"]:
-                        goldBonus += 2*players[i].ai.goldValue
-                    if players[i-2].wonder.resource == ["loom"] or players[i-1].wonder.resource == ["glass"] or players[i-1].wonder.resource == ["papyrus"]:
-                        goldBonus += 2*players[i].ai.goldValue
+                        goldBonus += 2*goldValue
+                    if players[i-2].wonder.resource == ["loom"] or players[i-2].wonder.resource == ["glass"] or players[i-2].wonder.resource == ["papyrus"]:
+                        goldBonus += 2*goldValue
                 elif j.name == "Vineyard":
-                    goldBonus = (players[i].effects.count("brown") + players[i-1].effects.count("brown") + players[i-2].effects.count("brown")) * players[i].ai.goldValue
+                    goldBonus = (players[i].effects.count("brown") + players[i-1].effects.count("brown") + players[i-2].effects.count("brown")) * goldValue
                 elif j.name == "Haven":
-                    goldBonus = (players[i].effects.count("brown"))*(1+players[i].ai.goldValue)
+                    goldBonus = (players[i].effects.count("brown"))*(1+0.3333)
                 elif j.name == "Lighthouse":
-                    goldBonus = (players[i].effects.count("yellow"))*(1+players[i].ai.goldValue)
+                    goldBonus = (players[i].effects.count("yellow"))*(1+0.3333)
                 elif j.name  == "Arena":
-                    goldBonus = (players[i].effects.count("wonder"))*((3*players[i].ai.goldValue) + 1)
-                heuristicEval.append(goldBonus - (cardCost * players[i].ai.goldValue))
+                    goldBonus = (players[i].effects.count("wonder"))*((3*0.33333) + 1)
+                heuristicEval.append(goldBonus - (cardCost * goldValue))
             
             elif j.colour == "purple":
                 guildBonus = 0
@@ -986,14 +1081,19 @@ def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
                     guildBonus += players[i-1].effects.count("wonder") + players[i-2].effects.count("wonder") + players[i].effects.count("wonder")
                 if j == shipownersGuild:
                     guildBonus += players[i].effects.count("brown") + players[i].effects.count("grey") + players[i].effects.count("purple")
-                if j == philosophersGuild:
+                if j == strategistsGuild:
                     guildBonus += players[i-1].effects.count("loss") + players[i-2].effects.count("loss")
-                heuristicEval.append(guildBonus - (cardCost * players[i].ai.goldValue))
+                if j == scientistsGuild:
+                    guildBonus += techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science")+1) - techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science"))
+                    
+                heuristicEval.append(guildBonus - (cardCost * goldValue))
             
             elif j.colour == "wonder":
                 wonderBonus = 0
                 if type(j.produce) == int:
                     wonderBonus = j.produce
+                    if age == 1:
+                        wonderBonus += 2
                 else:
                     if players[i].wonder == halikarnassosA:
                         if len(discardPile) == 0:
@@ -1006,35 +1106,35 @@ def aiHeuristicEval(players, playableCards, i, age, hand, discardPile):
                         wonderBonus = 7
                         for x in players[i].buildings:
                             if x.colour == "brown":
-                                wonderBonus -= 1
+                                wonderBonus -= 0.5
                     if players[i].wonder == babylonA:
                         wonderBonus = techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science")+1) - techVictoryPoints(players[i].science.count("cog"), players[i].science.count("tablet"), players[i].science.count("compass"), players[i].effects.count("science"))
                     if players[i].wonder == ephesosA:
-                        wonderBonus = 9 * players[i].ai.goldValue
+                        wonderBonus = 9 * goldValue
                     if players[i].wonder == olympiaA:
                         wonderBonus = 6 - age
-                heuristicEval.append(wonderBonus - (cardCost * players[i].ai.goldValue))
+                heuristicEval.append(wonderBonus - (cardCost * goldValue))
     return heuristicEval
                 
 def testHeuristics(games):
     vpTotal = [0,0,0]
     winCount = [0,0,0]
+    allVP = []
     for gameCounter in range(games):
         vpPlus = playGame()
         for i in range(3):
             vpTotal[i] += vpPlus[3][i]
+        allVP.append(vpPlus[3])
         winCount[vpPlus[3].index(max(vpPlus[3][0],vpPlus[3][1],vpPlus[3][2]))] += 1
     print("-------------------------------------------------------------")
     print("Final Results")
     print()
     for i in range(3):
         print(vpPlus[i] + " scored on average after " + str(games) + " games " + str(vpTotal[i]/games) + " points and won " + str(winCount[i]) + " of those games.")
-            
-        
 
-testHeuristics(100)
 
+testHeuristics(500)
 
 
 
-        
+
