@@ -1133,7 +1133,7 @@ def testHeuristics(games):
         print(vpPlus[i] + " scored on average after " + str(games) + " games " + str(vpTotal[i]/games) + " points and won " + str(winCount[i]) + " of those games.")
 
 
-testHeuristics(500)
+testHeuristics(1)
 
 
 
